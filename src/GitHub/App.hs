@@ -7,17 +7,17 @@ module GitHub.App
    , createInstToken
   ) where
 
-import Universum hiding (exp, Option)
-import Crypto.Types.PubKey.RSA (PrivateKey(..))
-import Data.Aeson (FromJSON (..), withObject, (.:))
-import Data.Default.Class (def)
-import GitHub.Auth (Auth (..))
-import Lens.Micro.Platform (makeLenses, (^.))
-import Network.HTTP.Req (POST (..), NoReqBody (..), Option, Url, header, https,
-                         jsonResponse, req, responseBody, runReq, (/:))
-import Data.Time.Clock (UTCTime (..))
-import Data.Time.Clock.POSIX (POSIXTime,getPOSIXTime, utcTimeToPOSIXSeconds)
-import Web.JWT  (Signer(..), JSON, JWTClaimsSet(..), encodeSigned, numericDate, stringOrURI)
+import Universum hiding          (exp, Option)
+import Crypto.Types.PubKey.RSA   (PrivateKey(..))
+import Data.Aeson                (FromJSON (..), withObject, (.:))
+import Data.Default.Class        (def)
+import GitHub.Auth               (Auth (..))
+import Lens.Micro.Platform       (makeLenses, (^.))
+import Network.HTTP.Req          (POST (..), NoReqBody (..), Option, Url, header, https,
+                                   jsonResponse, req, responseBody, runReq, (/:))
+import Data.Time.Clock           (UTCTime (..))
+import Data.Time.Clock.POSIX     (POSIXTime,getPOSIXTime, utcTimeToPOSIXSeconds)
+import Web.JWT                   (Signer(..), JSON, JWTClaimsSet(..), encodeSigned, numericDate, stringOrURI)
 import qualified Prelude as Show (Show, show)
 import qualified  Data.Text as T (takeWhileEnd, takeWhile)
 
@@ -65,10 +65,10 @@ makeLenses '' InstallationAuth
 
 instance FromJSON GTAToken where
     parseJSON = withObject "Github installation token" $ \o -> do 
-        instToken <- o .: "token"  
+        instToken   <- o .: "token"  
         expireAtM   <- expPOSIXtime <$> o .: "expires_at"
         case expireAtM of 
-            Nothing -> fail "Failed to parse expiraion time."
+            Nothing       -> fail "Failed to parse expiraion time."
             Just expireAt -> return GTAToken{..}
 
 -- | newtype for failed JSON Web token generation.
@@ -84,7 +84,7 @@ instance Exception FailedGenerateJWT
 -- Otherwise it call function that gets new token from github and writes it to IORef, and also returns that new token. 
 authenticateInstallation :: InstallationAuth -> IO Auth
 authenticateInstallation instAuth = do 
-    gtaToken <- readIORef (instAuth ^. token)
+    gtaToken    <- readIORef (instAuth ^. token)
     currentTime <- getPOSIXTime
     if (expireAt gtaToken) - currentTime >= bufferTime 
     then return $ OAuth $ encodeUtf8 $ instToken gtaToken
@@ -100,7 +100,7 @@ renewInstAuthToken instAuth = do
     let tkn = instAuth ^. token
     case (makeJWT time (instAuth ^. appId) (instAuth ^. appPrivateKey)) of 
         Left  err  -> throwM (FailedGenerateJWT err) 
-        Right jwt -> do 
+        Right jwt  -> do 
             t <- request (https baseURL /: "installations" /: (instAuth ^. installationId) /: "access_tokens") mempty jwt    
             writeIORef tkn t 
             return tkn
@@ -112,9 +112,9 @@ createInstAuth appId key instId = do
     time    <- getPOSIXTime
     case (makeJWT time appId key) of 
         Left  err  -> throwM (FailedGenerateJWT err) 
-        Right jwt -> do 
-            t <- request (https baseURL /: "installations" /: instId /: "access_tokens") mempty jwt
-            token <- newIORef t
+        Right jwt  -> do 
+            t      <- request (https baseURL /: "installations" /: instId /: "access_tokens") mempty jwt
+            token  <- newIORef t
             return $ InstallationAuth appId key instId token
     
 
@@ -122,7 +122,7 @@ createInstAuth appId key instId = do
 makeJWT :: POSIXTime -> Int -> PrivateKey -> Either Text JSON 
 makeJWT currentTime appId appPrivateKey = do 
     let currDate = numericDate currentTime 
-    let expDate = numericDate (currentTime + jwtExpTime)
+    let expDate  = numericDate (currentTime + jwtExpTime)
     if (currDate >> expDate) == Nothing 
     then Left "Failed to convert time to numericDate."
     else do
