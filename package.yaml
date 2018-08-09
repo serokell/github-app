@@ -3,7 +3,7 @@ version:             0.0.1
 synopsis:            Authetnicate as a GitHub App
 description:         Please see the README on GitHub at <https://github.com/serokell/github-api#readme>
 category:            Network
-license:             BSD3
+license:             MPL-2.0
 author:              "Serokell"
 maintainer:          "Kirill Elagin <kirelagin@serokell.io>"
 github:              "serokell/github-api"
