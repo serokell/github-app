@@ -1,0 +1,47 @@
+name:                github-app
+version:             0.0.1
+synopsis:            Authetnicate as a GitHub App
+description:         Please see the README on GitHub at <https://github.com/serokell/github-app#readme>
+category:            Network
+license:             MPL-2.0
+author:              "Serokell"
+maintainer:          "Kirill Elagin <kirelagin@serokell.io>"
+github:              "serokell/github-app"
+copyright:           "2018 Serokell"
+
+extra-source-files:
+  - README.md
+  - ChangeLog.md
+
+default-extensions:
+  - ApplicativeDo
+  - DeriveGeneric
+  - FlexibleContexts
+  - FlexibleInstances
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NamedFieldPuns
+  - OverloadedStrings
+  - RankNTypes
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TemplateHaskell
+  - TupleSections
+  - TypeApplications
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+  dependencies:
+    - aeson
+    - bytestring
+    - crypto-pubkey-types
+    - data-default-class
+    - github
+    - jwt
+    - req
+    - text
+    - time
