@@ -1,3 +1,3 @@
-# Changelog for github-api
+# Changelog for github-app
 
 ## Unreleased changes

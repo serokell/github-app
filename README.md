@@ -1,1 +1,1 @@
-# github-api
+# github-app
