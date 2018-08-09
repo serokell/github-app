@@ -11,11 +11,17 @@ module GitHub.App
        , createInstAuth
        ) where
 
-import Universum hiding (Option, exp)
+import Prelude hiding (exp)
 
 import Crypto.Types.PubKey.RSA (PrivateKey (..))
 import Data.Aeson (FromJSON (..), withObject, (.:))
 import Data.Default.Class (def)
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Text.Encoding (encodeUtf8)
+import Data.ByteString (ByteString)
+import Data.Semigroup ((<>))
+import Control.Concurrent (MVar, readMVar, takeMVar, putMVar, newEmptyMVar)
 import Data.Time (NominalDiffTime (..), UTCTime (..), addUTCTime, defaultTimeLocale, diffUTCTime,
                   getCurrentTime, iso8601DateFormat, parseTimeM)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
@@ -56,7 +62,7 @@ data InstallationToken = InstallationToken
 
 instance FromJSON InstallationToken where
     parseJSON = withObject "installation token" $ \o -> InstallationToken
-        <$> ((encodeUtf8 :: Text -> ByteString) <$> o .: "token")
+        <$> (encodeUtf8 <$> o .: "token")
         <*> (either fail pure =<< parseExpiresAt <$> o .: "expires_at")
       where
         parseExpiresAt :: String -> Either String UTCTime
@@ -112,9 +118,9 @@ renewInstAuthToken instAuth = do
 -- | Creates JSON Web Token for given application Id using application's privateKey.
 makeJWT :: UTCTime -> Int -> PrivateKey -> JSON
 makeJWT currentTime appId appPrivateKey =
-  let currDate     = numericDate $ utcTimeToPOSIXSeconds currentTime
-      expDate      = numericDate $ utcTimeToPOSIXSeconds $ jwtExpTime `addUTCTime` currentTime
-      issuer       = stringOrURI $ show appId
+  let currDate     = numericDate . utcTimeToPOSIXSeconds $ currentTime
+      expDate      = numericDate . utcTimeToPOSIXSeconds $ jwtExpTime `addUTCTime` currentTime
+      issuer       = stringOrURI . T.pack . show $ appId
       jwtClaimsSet = mempty {iss = issuer, iat = currDate, exp = expDate}
   in encodeSigned (RSAPrivateKey appPrivateKey) jwtClaimsSet
 

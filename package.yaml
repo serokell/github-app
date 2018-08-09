@@ -22,7 +22,6 @@ default-extensions:
   - LambdaCase
   - MultiParamTypeClasses
   - NamedFieldPuns
-  - NoImplicitPrelude
   - OverloadedStrings
   - RankNTypes
   - ScopedTypeVariables
@@ -45,5 +44,5 @@ library:
     - jwt
     - microlens-platform
     - req
+    - text
     - time
-    - universum
