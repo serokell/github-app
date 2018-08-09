@@ -13,16 +13,17 @@ module GitHub.App
 
 import Prelude hiding (exp)
 
+import Control.Concurrent (MVar, newEmptyMVar, putMVar, readMVar, takeMVar)
+import Control.Monad (void)
 import Crypto.Types.PubKey.RSA (PrivateKey (..))
 import Data.Aeson (FromJSON (..), withObject, (.:))
+import Data.ByteString (ByteString)
 import Data.Default.Class (def)
+import Data.Semigroup ((<>))
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
-import Data.ByteString (ByteString)
-import Data.Semigroup ((<>))
-import Control.Concurrent (MVar, readMVar, takeMVar, putMVar, newEmptyMVar)
-import Data.Time (NominalDiffTime (..), UTCTime (..), addUTCTime, defaultTimeLocale, diffUTCTime,
+import Data.Time (NominalDiffTime, UTCTime, addUTCTime, defaultTimeLocale, diffUTCTime,
                   getCurrentTime, iso8601DateFormat, parseTimeM)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import GitHub.Auth (Auth (..))
@@ -34,11 +35,11 @@ import Web.JWT (JSON, JWTClaimsSet (..), Signer (..), encodeSigned, numericDate,
 
 -- | Json Web Token expiration time. Maximun accepted by github is 10 minutes.
 jwtExpTime :: NominalDiffTime
-jwtExpTime = 600.0
+jwtExpTime = 600
 
 -- | Installation key expiration time. It is fixed by github and is equal to 1 hour.
 instKeyExpTime :: NominalDiffTime
-instKeyExpTime = 3600.0
+instKeyExpTime = 3600
 
 -- | Time preserved to be on the safe side.
 -- if expiration time of installation auth token <= current time + bufferTime
@@ -50,7 +51,6 @@ bufferTime = instKeyExpTime * 0.25
 baseURL :: Text
 baseURL = "api.github.com"
 
-type BaseURL = Text
 type InstallationId = Text
 
 
@@ -91,7 +91,7 @@ authenticateInstallation instAuth = do
     if getExpirationTime gtaToken `diffUTCTime` currentTime >= bufferTime
     then return $ OAuth $ getToken gtaToken
     else do
-        updatedToken   <- takeMVar (instAuth ^. token)
+        void $ takeMVar (instAuth ^. token)
         renewInstAuthToken instAuth
         updatedToken   <- readMVar (instAuth ^. token)
         return $ OAuth $ getToken updatedToken
@@ -99,10 +99,10 @@ authenticateInstallation instAuth = do
 -- | Creates new InstallationAuth value. Useing this function is the only way to create
 -- InstallationAuth value, because we don't export constructors.
 createInstAuth :: Int -> PrivateKey -> InstallationId -> IO InstallationAuth
-createInstAuth appId key instId = do
-    token  <- newEmptyMVar
-    let instAuth = InstallationAuth appId key instId token
-    _      <- renewInstAuthToken instAuth
+createInstAuth applicationId key instId = do
+    tokenVar  <- newEmptyMVar
+    let instAuth = InstallationAuth applicationId key instId tokenVar
+    renewInstAuthToken instAuth
     return instAuth
 
 -- | Gets new token from github and writes it to IORef in given InstallationAuth.
@@ -117,12 +117,12 @@ renewInstAuthToken instAuth = do
 
 -- | Creates JSON Web Token for given application Id using application's privateKey.
 makeJWT :: UTCTime -> Int -> PrivateKey -> JSON
-makeJWT currentTime appId appPrivateKey =
+makeJWT currentTime applicationId applicationPrivateKey =
   let currDate     = numericDate . utcTimeToPOSIXSeconds $ currentTime
       expDate      = numericDate . utcTimeToPOSIXSeconds $ jwtExpTime `addUTCTime` currentTime
-      issuer       = stringOrURI . T.pack . show $ appId
+      issuer       = stringOrURI . T.pack . show $ applicationId
       jwtClaimsSet = mempty {iss = issuer, iat = currDate, exp = expDate}
-  in encodeSigned (RSAPrivateKey appPrivateKey) jwtClaimsSet
+  in encodeSigned (RSAPrivateKey applicationPrivateKey) jwtClaimsSet
 
 -- | Make request to github to get installation Auth token.
 request :: FromJSON m => Url scheme -> Option scheme -> JSON -> IO m
