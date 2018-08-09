@@ -26,7 +26,6 @@ import Data.Time (NominalDiffTime, UTCTime, addUTCTime, defaultTimeLocale, diffU
                   getCurrentTime, iso8601DateFormat, parseTimeM)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import GitHub.Auth (Auth (..))
-import Lens.Micro.Platform (makeLenses, (^.))
 import Network.HTTP.Req (NoReqBody (..), Option, POST (..), Url, header, https, jsonResponse, req,
                          responseBody, runReq, (/:))
 import Web.JWT (JSON, JWTClaimsSet (..), Signer (..), encodeSigned, numericDate, stringOrURI)
@@ -58,8 +57,8 @@ type InstallationId = Text
 
 -- | GitHub installation access token
 data InstallationToken = InstallationToken
-    { getToken          :: ByteString
-    , getExpirationTime :: UTCTime
+    { itToken          :: ByteString
+    , itExpirationTime :: UTCTime
     } deriving (Show)
 
 instance FromJSON InstallationToken where
@@ -72,28 +71,26 @@ instance FromJSON InstallationToken where
 
 -- | Credentials required for an app to authenticate as an installation
 data InstallationAuth = InstallationAuth
-    {  _appId          :: !Int                       -- ^ Application id
-    ,  _appPrivateKey  :: !PrivateKey                -- ^ Private key to sign token requests
-    ,  _installationId :: !Text                      -- ^ Installation id
-    ,  _token          :: !(MVar InstallationToken)  -- ^ Installation Auth token
+    { iaAppId          :: !Int                       -- ^ Application id
+    , iaAppPrivateKey  :: !PrivateKey                -- ^ Private key to sign token requests
+    , iaInstallationId :: !Text                      -- ^ Installation id
+    , iaToken          :: !(MVar InstallationToken)  -- ^ Installation Auth token
     }
-
-makeLenses '' InstallationAuth
 
 -- | Return a valid App access token
 --
 -- Checks if the cached token is expired and renews it if needed.
 authenticateInstallation :: InstallationAuth -> IO Auth
-authenticateInstallation instAuth = do
-    gtaToken    <- readMVar (instAuth ^. token)
+authenticateInstallation ia@InstallationAuth{iaToken} = do
+    InstallationToken{itToken, itExpirationTime} <- readMVar iaToken
     currentTime <- getCurrentTime
-    if getExpirationTime gtaToken `diffUTCTime` currentTime >= bufferTime
-    then return $ OAuth $ getToken gtaToken
+    if itExpirationTime `diffUTCTime` currentTime >= bufferTime
+    then return $ OAuth itToken
     else do
-        void $ takeMVar (instAuth ^. token)
-        renewInstAuthToken instAuth
-        updatedToken   <- readMVar (instAuth ^. token)
-        return $ OAuth $ getToken updatedToken
+        void $ takeMVar iaToken
+        renewInstAuthToken ia
+        InstallationToken{itToken = newToken} <- readMVar iaToken
+        return $ OAuth newToken
 
 -- | Smart constructor for 'InstallationAuth'
 mkInstallationAuth :: Int -> PrivateKey -> InstallationId -> IO InstallationAuth
@@ -107,21 +104,20 @@ mkInstallationAuth applicationId key instId = do
 --
 -- Assumes that the MVar in 'InstallationAuth' is empty. Otherwise will block.
 renewInstAuthToken :: InstallationAuth -> IO ()
-renewInstAuthToken instAuth = do
+renewInstAuthToken InstallationAuth{iaAppId, iaInstallationId, iaAppPrivateKey, iaToken} = do
     time <- getCurrentTime
-    let tkn = instAuth ^. token
-    let jwt = makeJWT time (instAuth ^. appId) (instAuth ^. appPrivateKey)
-    t <- request (https baseURL /: "installations" /: (instAuth ^. installationId) /: "access_tokens") mempty jwt
-    putMVar tkn t
+    let jwt = makeJWT time
+    t <- request (https baseURL /: "installations" /: iaInstallationId /: "access_tokens") mempty jwt
+    putMVar iaToken t
   where
     -- | Create a JSON Web Token for the given application id using application's private key
-    makeJWT :: UTCTime -> Int -> PrivateKey -> JSON
-    makeJWT currentTime applicationId applicationPrivateKey =
+    makeJWT :: UTCTime -> JSON
+    makeJWT currentTime =
       let currDate     = numericDate . utcTimeToPOSIXSeconds $ currentTime
           expDate      = numericDate . utcTimeToPOSIXSeconds $ jwtExpTime `addUTCTime` currentTime
-          issuer       = stringOrURI . T.pack . show $ applicationId
+          issuer       = stringOrURI . T.pack . show $ iaAppId
           jwtClaimsSet = mempty {iss = issuer, iat = currDate, exp = expDate}
-      in encodeSigned (RSAPrivateKey applicationPrivateKey) jwtClaimsSet
+      in encodeSigned (RSAPrivateKey iaAppPrivateKey) jwtClaimsSet
 
     -- | Make a request to GitHub to get an installation Auth token
     request :: FromJSON m => Url scheme -> Option scheme -> JSON -> IO m

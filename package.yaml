@@ -42,7 +42,6 @@ library:
     - data-default-class
     - github
     - jwt
-    - microlens-platform
     - req
     - text
     - time
