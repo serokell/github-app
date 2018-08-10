@@ -119,6 +119,7 @@ createAccessTokenR InstallationAuth{..} = do
     pure req
         { HTTP.requestHeaders =
             [ ("Authorization", "Bearer " <> encodeUtf8 jwt)
+            , ("Accept", "application/vnd.github.machine-man-preview+json")
             , ("User-Agent", "github-app/Haskell")
             ]
         , HTTP.checkResponse = successOrMissing Nothing
