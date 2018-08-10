@@ -40,7 +40,7 @@ library:
   dependencies:
     - aeson
     - bytestring
-    - crypto-pubkey-types
+    - cryptonite
     - github
     - http-client
     - http-client-tls
@@ -50,3 +50,5 @@ library:
     - safe-exceptions
     - text
     - time
+    - x509
+    - x509-store

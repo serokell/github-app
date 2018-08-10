@@ -7,7 +7,7 @@
 {-# LANGUAGE DataKinds #-}
 
 module GitHub.App.Auth
-       ( AppAuth
+       ( AppAuth (..)
 
        , InstallationAuth
        , mkInstallationAuth
@@ -21,7 +21,7 @@ import Control.Concurrent (MVar, newMVar, putMVar, readMVar, takeMVar)
 import Control.Exception.Safe (bracketOnError, catch)
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
 import Control.Monad.Trans (lift)
-import Crypto.Types.PubKey.RSA (PrivateKey)
+import Crypto.PubKey.RSA (PrivateKey)
 import Data.Aeson (FromJSON (..), withObject, (.:))
 import qualified Data.ByteString.Lazy as LBS
 import Data.Functor (($>))
