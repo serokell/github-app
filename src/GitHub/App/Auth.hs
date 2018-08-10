@@ -117,7 +117,10 @@ createAccessTokenR InstallationAuth{..} = do
 
     req <- HTTP.parseRequest . T.unpack $ url
     pure req
-        { HTTP.requestHeaders = [("Authorization", "Bearer " <> encodeUtf8 jwt)]
+        { HTTP.requestHeaders =
+            [ ("Authorization", "Bearer " <> encodeUtf8 jwt)
+            , ("User-Agent", "github-app/Haskell")
+            ]
         , HTTP.checkResponse = successOrMissing Nothing
         , HTTP.method = "POST"
         }
