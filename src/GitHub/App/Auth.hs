@@ -7,23 +7,24 @@
 {-# LANGUAGE DataKinds #-}
 
 module GitHub.App.Auth
-       ( InstallationAuth
+       ( AppAuth
+
+       , InstallationAuth
        , mkInstallationAuth
 
        , obtainAccessToken
-
-       , AppId
-       , InstallationId
        ) where
 
 import Prelude hiding (exp)
 
 import Control.Concurrent (MVar, newMVar, putMVar, readMVar, takeMVar)
 import Control.Exception.Safe (bracketOnError, catch)
-import Control.Monad.Except (MonadError (throwError), ExceptT, runExceptT)
-import Data.Functor (($>))
+import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
+import Control.Monad.Trans (lift)
 import Crypto.Types.PubKey.RSA (PrivateKey)
 import Data.Aeson (FromJSON (..), withObject, (.:))
+import qualified Data.ByteString.Lazy as LBS
+import Data.Functor (($>))
 import Data.Maybe (fromMaybe)
 import Data.Semigroup ((<>))
 import Data.Text (Text)
@@ -31,18 +32,18 @@ import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Data.Time (NominalDiffTime, UTCTime, diffUTCTime, getCurrentTime)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
-import Control.Monad.Trans (lift)
-import Data.Word (Word64)
 import GitHub.Auth (Auth (OAuth))
+import GitHub.Data.Apps (App)
 import GitHub.Data.Definitions (Error (HTTPError))
+import GitHub.Data.Id (Id, untagId)
+import GitHub.Data.Installations (Installation)
 import GitHub.Data.Request (StatusMap)
 import GitHub.Request (parseResponse)
-import Web.JWT (JWTClaimsSet (exp, iat, iss), Signer (RSAPrivateKey), encodeSigned,
-                numericDate, stringOrURI)
 import Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.Internal as HTTP
 import qualified Network.HTTP.Types as HTTP
-import qualified Data.ByteString.Lazy         as LBS
+import Web.JWT (JWTClaimsSet (exp, iat, iss), Signer (RSAPrivateKey), encodeSigned, numericDate,
+                stringOrURI)
 
 
 -- | JWT expiration time. Maximum accepted by GitHub is 10 minutes
@@ -64,10 +65,16 @@ baseUrl :: Text
 baseUrl = "https://api.github.com"
 
 
+-- | Credentials of a GitHub App
+data AppAuth = AppAuth
+    { aaAppId      :: !(Id App)
+    , aaPrivateKey :: !PrivateKey
+    }
+
 -- | Cached GitHub installation access token
 data InstallationToken = InstallationToken
-    { itToken          :: Auth
-    , itExpirationTime :: UTCTime
+    { itToken          :: !Auth
+    , itExpirationTime :: !UTCTime
     } deriving (Show)
 
 instance FromJSON InstallationToken where
@@ -77,7 +84,7 @@ instance FromJSON InstallationToken where
             <*> o .: "expires_at"
 
 
--- | Credentials required for an app to authenticate as an installation
+-- | Credentials required for an App to authenticate as an installation
 data InstallationAuth = InstallationAuth
     { iaClaimsSet      :: !JWTClaimsSet                      -- ^ Prefilled claims set
     , iaAppPrivateKey  :: !PrivateKey                        -- ^ Private key to sign token requests
@@ -86,20 +93,16 @@ data InstallationAuth = InstallationAuth
     }
 
 
-type AppId = Word64
-type InstallationId = Word64
-
 -- | Smart constructor for 'InstallationAuth'
 mkInstallationAuth
-    :: AppId                -- ^ GitHub App ID
-    -> PrivateKey           -- ^ GitHub App Private Key
-    -> InstallationId       -- ^ Installation ID
+    :: AppAuth
+    -> Id Installation
     -> IO InstallationAuth
-mkInstallationAuth appId pk instId = do
+mkInstallationAuth AppAuth{aaAppId, aaPrivateKey} instId = do
     varToken <- newMVar Nothing
-    let issuer = fromMaybe (error "impossible") . stringOrURI . T.pack . show $ appId
+    let issuer = fromMaybe (error "impossible") . stringOrURI . T.pack . show . untagId $ aaAppId
         claimsSet = mempty { iss = Just issuer }
-    pure $ InstallationAuth claimsSet pk (T.pack . show $ instId) varToken
+    pure $ InstallationAuth claimsSet aaPrivateKey (T.pack . show . untagId $ instId) varToken
 
 -- | Create a request which, when executed, will obtain a new access token
 createAccessTokenR :: InstallationAuth -> IO HTTP.Request
