@@ -24,6 +24,7 @@ default-extensions:
   - NamedFieldPuns
   - OverloadedStrings
   - RankNTypes
+  - RecordWildCards
   - ScopedTypeVariables
   - StandaloneDeriving
   - TemplateHaskell
@@ -39,9 +40,12 @@ library:
     - aeson
     - bytestring
     - crypto-pubkey-types
-    - data-default-class
     - github
+    - http-client
+    - http-client-tls
+    - http-types
     - jwt
-    - req
+    - mtl
+    - safe-exceptions
     - text
     - time
