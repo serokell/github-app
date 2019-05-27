@@ -15,6 +15,7 @@ extra-source-files:
 
 default-extensions:
   - ApplicativeDo
+  - DeriveDataTypeable
   - DeriveGeneric
   - FlexibleContexts
   - FlexibleInstances
@@ -24,6 +25,7 @@ default-extensions:
   - NamedFieldPuns
   - OverloadedStrings
   - RankNTypes
+  - RecordWildCards
   - ScopedTypeVariables
   - StandaloneDeriving
   - TemplateHaskell
@@ -38,10 +40,15 @@ library:
   dependencies:
     - aeson
     - bytestring
-    - crypto-pubkey-types
-    - data-default-class
+    - cryptonite
     - github
-    - jwt
-    - req
+    - http-client
+    - http-client-tls
+    - http-types
+    - jwt >= 0.8.0
+    - mtl
+    - safe-exceptions
     - text
     - time
+    - x509
+    - x509-store
