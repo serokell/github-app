@@ -1,9 +1,11 @@
-resolver: lts-11.5
+resolver: lts-14.19
 
 packages:
 - .
 # Dependency packages to be pulled from upstream that are not in the resolver
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
-extra-deps: 
-  - jwt-0.8.0
+extra-deps:
+  - github-0.24
+  - binary-instances-1
+  # - jwt-0.8.0

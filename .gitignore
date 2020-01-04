@@ -4,3 +4,5 @@ cabal.project.local
 cabal.project.local~
 .ghc.environment.*
 *.cabal
+
+.stack-work

@@ -27,6 +27,7 @@ import qualified Data.ByteString.Lazy as LBS
 import Data.Functor (($>))
 import Data.Maybe (fromMaybe)
 import Data.Semigroup ((<>))
+import Data.Tagged
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
@@ -37,8 +38,7 @@ import GitHub.Data.Apps (App)
 import GitHub.Data.Definitions (Error (HTTPError))
 import GitHub.Data.Id (Id, untagId)
 import GitHub.Data.Installations (Installation)
-import GitHub.Data.Request (StatusMap)
-import GitHub.Request (parseResponse)
+import GitHub.Request (StatusMap, parseResponseJSON)
 import Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.Internal as HTTP
 import qualified Network.HTTP.Types as HTTP
@@ -113,7 +113,7 @@ createAccessTokenR InstallationAuth{..} = do
             { iat = Just $ toJsonTime currentTime
             , exp = Just $ toJsonTime expiryTime
             }
-        jwt = encodeSigned (RSAPrivateKey iaAppPrivateKey) claims
+        jwt = encodeSigned (RSAPrivateKey iaAppPrivateKey) mempty claims
 
     req <- HTTP.parseRequest . T.unpack $ url
     pure req
@@ -148,7 +148,7 @@ obtainAccessToken mgr ia@InstallationAuth{..} = readMVar iaToken >>= \case
     renew :: IO (Either Error Auth)
     renew = bracketOnError (takeMVar iaToken) (putMVar iaToken) $ \_ -> do
         req <- createAccessTokenR ia
-        result <- runExceptT $ httpLbs' req >>= parseResponse
+        result <- runExceptT $ httpLbs' req >>= parseResponseJSON
         case result of
             Right newToken -> putMVar iaToken (Just newToken) $> Right (itToken newToken)
             Left  err      -> putMVar iaToken Nothing $> Left err
