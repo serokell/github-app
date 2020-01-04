@@ -10,6 +10,7 @@ module GitHub.App.Request
        , executeAppRequestWithMgr
        ) where
 
+import Data.Aeson (FromJSON)
 import GitHub.Data (Error (..))
 import GitHub.Data.Request (Request)
 import GitHub.Request (executeRequestWithMgr)
@@ -19,7 +20,7 @@ import Network.HTTP.Client.TLS (newTlsManager)
 import GitHub.App.Auth (InstallationAuth, obtainAccessToken)
 
 
-executeAppRequest :: InstallationAuth -> Request k a -> IO (Either Error a)
+executeAppRequest :: FromJSON a => InstallationAuth -> Request k a -> IO (Either Error a)
 executeAppRequest instAuth req = do
     manager <- newTlsManager
     x <- executeAppRequestWithMgr manager instAuth req
@@ -29,7 +30,8 @@ executeAppRequest instAuth req = do
     pure x
 
 executeAppRequestWithMgr
-    :: Manager
+    :: FromJSON a
+    => Manager
     -> InstallationAuth
     -> Request k a
     -> IO (Either Error a)
